@@ -30,6 +30,8 @@
 #define DRAKE_R4_SYNC_ATOB            PIN_F6
 #define DRAKE_R4_SYNC_BTOA            PIN_F7
 
+//#define __DEBUG 
+
 Si5351 si5351;
 LiquidCrystal lcd(12, 11, 23, 4, 3, 2);
 unsigned long long curr_freq[2];
@@ -76,8 +78,6 @@ void update_display() {
     int freq = (int)((curr_freq[i] - DRAKE_R4_OFFSET)/10000000);
     int mhz = freq/10;
     lcd.setCursor(0, i);
-    // lcd print is slow with the 4pin api. 
-    // Construct the string and call print once.
     lcd.print((i==0) ? "A " : "B "); // channel header
     if (mhz < 10) {
       lcd.print(" "); // leading space, if necessary.
@@ -90,9 +90,6 @@ void update_display() {
   }
 }
 
-void update_help_msg() {
-  // band info. not for tx, etc.
-}
 
 /**
  * channel 0 for A, 1 for B
@@ -140,6 +137,12 @@ void update_frequency(int channel, int up) {
   }
 #endif
   si5351.set_freq(curr_freq[channel], 0ULL, get_clk(channel));
+#ifdef __DEBUG
+  Serial.write("device:");
+  Serial.print((int)(si5351.clk0_freq/10000000));
+  Serial.write(",");
+  Serial.println((int)(si5351.clk1_freq/10000000));
+#endif
 }
 
 void show_spalsh() {
