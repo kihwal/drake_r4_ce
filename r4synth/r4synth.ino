@@ -34,11 +34,11 @@
 
 Si5351 si5351;
 LiquidCrystal lcd(12, 11, 23, 4, 3, 2);
-unsigned long long curr_freq[2];
+uint64_t curr_freq[2];
 
 /** return the enum corresponding to the channel number */
 si5351_clock get_clk(int channel) {
-  return channel == 0 ? SI5351_CLK0 : SI5351_CLK1;
+  return channel == 0 ? SI5351_CLK0 : SI5351_CLK2;
 }
 
 /** get label for the band
@@ -58,6 +58,8 @@ char* get_label(int freq) {
       return " <9.75";
     case 211: // 10mhz no rx
       return ">10.25";
+    case 208:
+      return " 30mTX";
     case 131:
     case 136:
     case 161: // 5mhz
@@ -141,7 +143,7 @@ void update_frequency(int channel, int up) {
   Serial.write("device:");
   Serial.print((int)(si5351.clk0_freq/10000000));
   Serial.write(",");
-  Serial.println((int)(si5351.clk1_freq/10000000));
+  Serial.println((int)(si5351.clk2_freq/10000000));
 #endif
 }
 
@@ -176,8 +178,8 @@ void setup() {
   
   // Setup the output
   si5351.output_enable(SI5351_CLK0, 1);
-  si5351.output_enable(SI5351_CLK1, 1);
-  si5351.output_enable(SI5351_CLK2, 0);
+  si5351.output_enable(SI5351_CLK1, 0);
+  si5351.output_enable(SI5351_CLK2, 1);
   for (int i = 0; i < 2; i++) {
     curr_freq[i] = DRAKE_R4_INITIAL_FREQ;
     si5351.set_freq(curr_freq[i], 0ULL, get_clk(i)); 
