@@ -11,26 +11,24 @@
 #include <Wire.h>
 
 // Carrier frequencies
-#define DRAKE_TR3_CAR_CF            900155000ULL  // KVG LSB filter
-#define DRAKE_TR3_CAR_SB_OFFSET        135000ULL  // 1.3kc
-#define DRAKE_TR3_CAR_CW_OFFSET             0ULL  // CF on CW
+#define DRAKE_TR3_CAR_CF            900155000ULL  // CF of the KVG USB filter
+#define DRAKE_TR3_CAR_SB_OFFSET        135000ULL  // 1.35kc
+#define DRAKE_TR3_CAR_CW_OFFSET             0ULL  // on CW
 
-//#define DRAKE_TR3_CAR_CF            900155000ULL  // KVG LSB filter
-//#define DRAKE_TR3_CAR_SB_OFFSET        130000ULL  // 1.3kc
-
-
-// Band LO frequencies
-#define DRAKE_TR3_LO_3MHZ           1800000000ULL  // 21.5 MHz
-
-#define DRAKE_TR3_LO_7MHZ           2150000000ULL  // 21.5 MHz
-#define DRAKE_TR3_LO_21MHZ          3550000000ULL  // 35.5 MHz
-#define DRAKE_TR3_LO_28_0MHZ        4250000000ULL  // 42.5 MHz
-#define DRAKE_TR3_LO_28_5MHZ        4300000000ULL  // 43.0 MHz
-#define DRAKE_TR3_LO_29_1MHZ        4360000000ULL  // 43.6 MHz
-#define DRAKE_TR3_LO_OFF                     0ULL
+// Band LO frequencies. Calibrated for the error and offset
+// For 40m-10m, dial does not need calibrated. 3.5 will be 2.7kc off.
+#define DRAKE_TR3_LO_7MHZ           2149997100ULL  // 21.5 MHz
+#define DRAKE_TR3_LO_21MHZ          3550263800ULL  // 35.5 MHz +2.7kc
+#define DRAKE_TR3_LO_28_0MHZ        4250262600ULL  // 42.5 MHz +2.7kc
+#define DRAKE_TR3_LO_28_5MHZ        4300262500ULL  // 43.0 MHz +2.7kc
+#define DRAKE_TR3_LO_29_1MHZ        4360262400ULL  // 43.6 MHz +2.7kc
+#define DRAKE_TR3_LO_OFF           15100000000ULL  // 151MHz.
+// rather than turning on and off one output, setting it to a frequency
+// seems more stable. Mixing products with 150MHz shouldn't cause any
+// problem in this trx.
 
 // Input pins for the band selection
-// If none of these are set, it's on 20m or 80m, so the LO should shut down.
+// If none of these are set, it's on 20m or 80m.
 #define DRAKE_TR3_SEL_7MHZ          PIN_F0
 #define DRAKE_TR3_SEL_21MHZ         PIN_F1
 #define DRAKE_TR3_SEL_28_0MHZ       PIN_F4
@@ -58,27 +56,18 @@ void set_band_lo(unsigned long long freq) {
   if (current_band_lo == freq) {
     return;
   }
-
-  if (freq == DRAKE_TR3_LO_OFF) {
-    // turn off the band lo
-    si5351.output_enable(SI5351_CLK1, 0);
-    current_band_lo = DRAKE_TR3_LO_OFF;
-    return;
-  } else {
-    si5351.output_enable(SI5351_CLK1, 1);
-  }
   si5351.set_freq(freq, 0ULL, SI5351_CLK1);
   current_band_lo = freq;
 }
 
 void setup() {
-  // Start serial and initialize the Si5351
+  // initialize the Si5351
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0);
 
   // Setup the output
-  si5351.output_enable(SI5351_CLK0, 1);
-  si5351.output_enable(SI5351_CLK1, 1); // turn off band lo initially
-  si5351.output_enable(SI5351_CLK2, 0); // carrier is always on
+  si5351.output_enable(SI5351_CLK0, 1); // carrier
+  si5351.output_enable(SI5351_CLK1, 1); // band lo
+  si5351.output_enable(SI5351_CLK2, 0);
 
   // Setup the input pins
   pinMode(DRAKE_TR3_SEL_7MHZ, INPUT_PULLUP);
@@ -88,13 +77,16 @@ void setup() {
   pinMode(DRAKE_TR3_SEL_29_1MHZ, INPUT_PULLUP);
   pinMode(DRAKE_TR3_SEL_SSB_X, INPUT_PULLUP);
   pinMode(DRAKE_TR3_SEL_CW_TX, INPUT_PULLUP);
+
+  // initial setup
+  set_carrier(DRAKE_TR3_CAR_CF + DRAKE_TR3_CAR_CW_OFFSET);
+  set_band_lo(DRAKE_TR3_LO_OFF);
 }
 
 
 void loop() {
-  // It must be possible to read a word and to bitwise check
-  // but we will settle for this since efficiency is not important here.
   int sel_carr_x = !digitalRead(DRAKE_TR3_SEL_SSB_X);
+  // Normally grounded. Floating(high) on CW.
   int sel_cw_tx = digitalRead(DRAKE_TR3_SEL_CW_TX);
 
   int sel_band_7mhz = !digitalRead(DRAKE_TR3_SEL_7MHZ);
